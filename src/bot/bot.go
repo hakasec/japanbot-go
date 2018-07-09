@@ -6,8 +6,8 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 
-	"git.declansoper.xyz/japanbot-go/bot/config"
-	"git.declansoper.xyz/japanbot-go/bot/dictionary"
+	"git.declansoper.xyz/japanbot/japanbot-go/bot/config"
+	"git.declansoper.xyz/japanbot/japanbot-go/bot/dictionary"
 )
 
 // JapanBot is a Discord bot with Japanese parsing abilities

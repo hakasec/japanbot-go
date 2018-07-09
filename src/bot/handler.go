@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"git.declansoper.xyz/japanbot-go/bot/helpers"
+	"git.declansoper.xyz/japanbot/japanbot-go/bot/helpers"
 	"github.com/bwmarrin/discordgo"
 )
 
