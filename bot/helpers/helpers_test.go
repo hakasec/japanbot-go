@@ -15,3 +15,10 @@ func TestCreateNGrams(t *testing.T) {
 		}
 	}
 }
+
+func TestNoDup(t *testing.T) {
+	result := CreateNgrams("むむ", 1)
+	if len(result) != 1 {
+		t.Fail()
+	}
+}
