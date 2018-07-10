@@ -47,8 +47,8 @@ func (b *JapanBot) onMessageCreate(s *discordgo.Session, m *discordgo.MessageCre
 	args := strings.Split(m.Content, " ")
 	command := args[0]
 	if len(command) > 4 && strings.Contains(command, "!") {
-		keyword := command[4:]
-		handler := b.handlers[keyword]
+		keywords := strings.Split(command[4:], "!")
+		handler := b.handlers[keywords[0]]
 		if handler != nil {
 			go handler(args, s, m.Message)
 		}

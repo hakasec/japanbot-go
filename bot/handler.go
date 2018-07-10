@@ -35,13 +35,19 @@ func (b *JapanBot) analyse(args []string, s *discordgo.Session, m *discordgo.Mes
 		}
 	}
 
+	commandSeg := strings.Split(args[0], "!")
+	commandLang := commandSeg[2]
 	for _, gram := range allGrams {
 		entry, ok := b.dictionary.Index[gram]
 		if ok {
 			message := fmt.Sprintf("```\n%s:\n", gram)
 			for _, sense := range entry.Senses {
 				for _, gloss := range sense.GlossaryItems {
-					if gloss.Language == "" || gloss.Language == "eng" {
+					language := gloss.Language
+					if language == "" {
+						language = "eng"
+					}
+					if language == commandLang {
 						message += fmt.Sprintf("\t%s\n", gloss.Definition)
 					}
 				}
