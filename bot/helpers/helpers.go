@@ -17,7 +17,10 @@ func CreateNgrams(s string, size int) []string {
 		if i+size > len(runes) {
 			break
 		}
-		result = append(result, string(runes[i:i+size]))
+		gram := string(runes[i : i+size])
+		if !StringSliceContains(result, gram) {
+			result = append(result, gram)
+		}
 	}
 	return result
 }
