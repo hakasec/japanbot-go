@@ -36,7 +36,10 @@ func (b *JapanBot) analyse(args []string, s *discordgo.Session, m *discordgo.Mes
 	}
 
 	commandSeg := strings.Split(args[0], "!")
-	commandLang := commandSeg[2]
+	commandLang := "eng"
+	if len(commandSeg) >= 3 {
+		commandLang = commandSeg[2]
+	}
 	for _, gram := range allGrams {
 		entry, ok := b.dictionary.Index[gram]
 		if ok {
