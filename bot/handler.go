@@ -41,6 +41,7 @@ func (b *JapanBot) analyse(args []string, s *discordgo.Session, m *discordgo.Mes
 		entry, ok := b.dictionary.Index[gram]
 		if ok {
 			message := fmt.Sprintf("```\n%s:\n", gram)
+			hasContent := false
 			for _, sense := range entry.Senses {
 				for _, gloss := range sense.GlossaryItems {
 					language := gloss.Language
@@ -48,12 +49,15 @@ func (b *JapanBot) analyse(args []string, s *discordgo.Session, m *discordgo.Mes
 						language = "eng"
 					}
 					if language == commandLang {
+						hasContent = true
 						message += fmt.Sprintf("\t%s\n", gloss.Definition)
 					}
 				}
 			}
 			message += "```"
-			s.ChannelMessageSend(m.ChannelID, message)
+			if hasContent {
+				s.ChannelMessageSend(m.ChannelID, message)
+			}
 		}
 	}
 }
