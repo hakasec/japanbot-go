@@ -24,6 +24,11 @@ func (b *JapanBot) createHandlerMap() HandlerMap {
 }
 
 func (b *JapanBot) analyse(args []string, s *discordgo.Session, m *discordgo.Message) {
+	if len(args) < 2 {
+		s.ChannelMessageSend(m.ChannelID, "You haven't entered a phrase!")
+		return
+	}
+
 	phrase := strings.Join(args[1:], " ")
 	var allGrams []string
 	for ngramSize := 1; ngramSize < len(phrase); ngramSize++ {
@@ -40,11 +45,12 @@ func (b *JapanBot) analyse(args []string, s *discordgo.Session, m *discordgo.Mes
 	if len(commandSeg) >= 3 {
 		commandLang = commandSeg[2]
 	}
+	hasContent := false
 	for _, gram := range allGrams {
 		entry, ok := b.dictionary.Index[gram]
 		if ok {
 			message := fmt.Sprintf("```\n%s:\n", gram)
-			hasContent := false
+			hasDefinition := false
 			for _, sense := range entry.Senses {
 				for _, gloss := range sense.GlossaryItems {
 					language := gloss.Language
@@ -52,15 +58,19 @@ func (b *JapanBot) analyse(args []string, s *discordgo.Session, m *discordgo.Mes
 						language = "eng"
 					}
 					if language == commandLang {
-						hasContent = true
+						hasDefinition = true
 						message += fmt.Sprintf("\t%s\n", gloss.Definition)
 					}
 				}
 			}
 			message += "```"
-			if hasContent {
+			if hasDefinition {
+				hasContent = true
 				s.ChannelMessageSend(m.ChannelID, message)
 			}
 		}
+	}
+	if !hasContent {
+		s.ChannelMessageSend(m.ChannelID, "ごめん! No definitions found!")
 	}
 }
