@@ -6,8 +6,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"git.declansoper.xyz/japanbot/japanbot-go/bot"
-	"git.declansoper.xyz/japanbot/japanbot-go/bot/config"
+	"github.com/hakasec/japanbot-go/bot"
+	"github.com/hakasec/japanbot-go/bot/config"
 )
 
 var botConfig *config.BotConfiguration

@@ -3,7 +3,7 @@ package dictionary
 import (
 	"io"
 
-	"git.declansoper.xyz/japanbot/jmdict-go"
+	jmdict "github.com/hakasec/jmdict-go"
 )
 
 type Dictionary struct {
