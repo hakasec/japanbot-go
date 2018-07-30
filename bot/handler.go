@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"git.declansoper.xyz/japanbot/japanbot-go/bot/helpers"
 	"github.com/bwmarrin/discordgo"
+	"github.com/hakasec/japanbot-go/bot/helpers"
 )
 
 // HandlerFunc defines a handler function
