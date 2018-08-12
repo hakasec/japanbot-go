@@ -19,7 +19,10 @@ type HandlerMap map[string]HandlerFunc
 
 func (b *JapanBot) createHandlerMap() HandlerMap {
 	return HandlerMap{
+		"analyze": b.analyse,
 		"analyse": b.analyse,
+		"help":    b.help,
+		"hentai":  b.hentai,
 	}
 }
 
@@ -73,4 +76,33 @@ func (b *JapanBot) analyse(args []string, s *discordgo.Session, m *discordgo.Mes
 	if !hasContent {
 		s.ChannelMessageSend(m.ChannelID, "ごめん! No definitions found!")
 	}
+}
+
+func (b *JapanBot) help(args []string, s *discordgo.Session, m *discordgo.Message) {
+	var builder strings.Builder
+	builder.WriteString("```\n")
+
+	builder.WriteString(
+		`All commands begin with "jpn!"
+
+Available Commands:
+
+- analyse/analyze: Analyse a Japanese sentence. 
+  You can add ![language_code] to return results of a chosen changed 
+  e.g. jpn!anaylse!spa will return all avaliable Spanish definitions.
+
+- help: This help text, silly!  
+`,
+	)
+
+	builder.WriteString("```")
+
+	s.ChannelMessageSend(
+		m.ChannelID,
+		builder.String(),
+	)
+}
+
+func (b *JapanBot) hentai(args []string, s *discordgo.Session, m *discordgo.Message) {
+	s.ChannelMessageSend(m.ChannelID, "CUMMING SOON!")
 }
