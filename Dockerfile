@@ -5,12 +5,9 @@ ENV CONFIG_PATH="/etc/japanbot-go"
 WORKDIR $GOPATH/src/github.com/hakasec/japanbot-go
 COPY . .
 
-# Install dependencies
-RUN [                                   \
-    "go", "get", "-u",                  \
-    "github.com/bwmarrin/discordgo",    \
-    "github.com/hakasec/jmdict-go"      \
-]
+# Install dep and dependencies
+RUN [ "go", "get", "-u", "github.com/golang/dep/cmd/dep" ]
+RUN [ "dep", "ensure" ]
 
 # Build and install
 RUN [ "go", "install" ]
