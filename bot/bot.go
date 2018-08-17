@@ -7,6 +7,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 
 	"github.com/hakasec/japanbot-go/bot/config"
+	"github.com/hakasec/japanbot-go/bot/database"
 	"github.com/hakasec/japanbot-go/bot/dictionary"
 )
 
@@ -15,6 +16,7 @@ type JapanBot struct {
 	dictionary    *dictionary.Dictionary
 	configuration *config.BotConfiguration
 	session       *discordgo.Session
+	db            *database.DBConnection
 	handlers      HandlerMap
 }
 
@@ -67,8 +69,14 @@ func New(config *config.BotConfiguration) (*JapanBot, error) {
 		return nil, err
 	}
 
+	db, err := database.OpenFromConfig(&config.DBConfig)
+	if err != nil {
+		return nil, err
+	}
+
 	b := &JapanBot{
 		dictionary:    d,
+		db:            db,
 		configuration: config,
 	}
 	b.handlers = b.createHandlerMap()

@@ -15,7 +15,7 @@ type DBConnection struct {
 }
 
 // OpenFromConfig creates a DBConnection from a given DBConfiguration
-func OpenFromConfig(config config.DBConfiguration) (*DBConnection, error) {
+func OpenFromConfig(config *config.DBConfiguration) (*DBConnection, error) {
 	db, err := sql.Open(config.DriverName, config.ConnString)
 	if err != nil {
 		return nil, err
