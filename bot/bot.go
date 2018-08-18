@@ -4,6 +4,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/hakasec/japanbot-go/bot/database/models"
+
 	"github.com/bwmarrin/discordgo"
 
 	"github.com/hakasec/japanbot-go/bot/config"
@@ -80,5 +82,6 @@ func New(config *config.BotConfiguration) (*JapanBot, error) {
 		configuration: config,
 	}
 	b.handlers = b.createHandlerMap()
+	db.CreateTable(models.Channel{})
 	return b, nil
 }
