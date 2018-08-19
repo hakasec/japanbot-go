@@ -2,14 +2,15 @@ package bot
 
 import (
 	"os"
+	"reflect"
 	"strings"
-
-	"github.com/hakasec/japanbot-go/bot/database/models"
 
 	"github.com/bwmarrin/discordgo"
 
 	"github.com/hakasec/japanbot-go/bot/config"
 	"github.com/hakasec/japanbot-go/bot/database"
+	"github.com/hakasec/japanbot-go/bot/database/models"
+	"github.com/hakasec/japanbot-go/bot/database/set"
 	"github.com/hakasec/japanbot-go/bot/dictionary"
 )
 
@@ -20,6 +21,8 @@ type JapanBot struct {
 	session       *discordgo.Session
 	db            *database.DBConnection
 	handlers      HandlerMap
+
+	channels *set.DBSet
 }
 
 // Start starts the JapanBot instance
@@ -76,12 +79,18 @@ func New(config *config.BotConfiguration) (*JapanBot, error) {
 		return nil, err
 	}
 
+	channelSet := set.New("channels", reflect.TypeOf(models.Channel{}), db)
+	err = channelSet.CreateTable()
+	if err != nil {
+		return nil, err
+	}
+
 	b := &JapanBot{
 		dictionary:    d,
 		db:            db,
 		configuration: config,
+		channels:      channelSet,
 	}
 	b.handlers = b.createHandlerMap()
-	db.CreateTable(models.Channel{})
 	return b, nil
 }

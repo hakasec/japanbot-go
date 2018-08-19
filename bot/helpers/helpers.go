@@ -53,3 +53,17 @@ func GetSQLType(T reflect.Type) string {
 		return "TEXT"
 	}
 }
+
+// GetModelFields returns a list of StructFields with the model tag
+func GetModelFields(T reflect.Type) []*reflect.StructField {
+	var fields []*reflect.StructField
+
+	for i := 0; i < T.NumField(); i++ {
+		field := T.Field(i)
+		_, ok := field.Tag.Lookup("model")
+		if ok {
+			fields = append(fields, &field)
+		}
+	}
+	return fields
+}
