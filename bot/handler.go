@@ -1,10 +1,12 @@
 package bot
 
 import (
+	"database/sql"
 	"fmt"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/hakasec/japanbot-go/bot/database/models"
 	"github.com/hakasec/japanbot-go/bot/helpers"
 )
 
@@ -23,6 +25,7 @@ func (b *JapanBot) createHandlerMap() HandlerMap {
 		"analyse": b.analyse,
 		"help":    b.help,
 		"hentai":  b.hentai,
+		"enable":  b.enableFeature,
 	}
 }
 
@@ -108,4 +111,48 @@ Available Commands:
 
 func (b *JapanBot) hentai(args []string, s *discordgo.Session, m *discordgo.Message) {
 	s.ChannelMessageSend(m.ChannelID, "CUMMING SOON!")
+}
+
+func (b *JapanBot) enableFeature(args []string, s *discordgo.Session, m *discordgo.Message) {
+	if len(args) < 2 {
+		s.ChannelMessageSend(m.ChannelID, "You need to enter the feature you'd like to enable!")
+		return
+	} else if len(args) > 2 {
+		s.ChannelMessageSend(m.ChannelID, "Only one feature at a time please!")
+		return
+	}
+
+	switch feature := strings.ToLower(args[1]); feature {
+	case "card":
+		if err := b.changeCardMode(m.ChannelID, 1); err != nil {
+			s.ChannelMessageSend(
+				m.ChannelID,
+				fmt.Sprintf("That failed: %s", err.Error()),
+			)
+		} else {
+			s.ChannelMessageSend(m.ChannelID, "Done :)")
+		}
+	default:
+		s.ChannelMessageSend(m.ChannelID, "That isn't a valid feature!")
+	}
+}
+
+func (b *JapanBot) changeCardMode(channelID string, cardMode int) error {
+	valueMap := map[string]interface{}{
+		"ChannelID": channelID,
+	}
+	c := &models.Channel{}
+	err := b.channels.Get(valueMap, c)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.ChannelID = channelID
+			c.CardMode = cardMode
+			b.channels.Add(c)
+		} else {
+			return err
+		}
+	}
+
+	//Update card mode here at some point
+	return nil
 }
