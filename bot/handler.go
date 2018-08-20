@@ -26,6 +26,7 @@ func (b *JapanBot) createHandlerMap() HandlerMap {
 		"help":    b.help,
 		"hentai":  b.hentai,
 		"enable":  b.enableFeature,
+		"disable": b.disableFeature,
 	}
 }
 
@@ -137,6 +138,30 @@ func (b *JapanBot) enableFeature(args []string, s *discordgo.Session, m *discord
 	}
 }
 
+func (b *JapanBot) disableFeature(args []string, s *discordgo.Session, m *discordgo.Message) {
+	if len(args) < 2 {
+		s.ChannelMessageSend(m.ChannelID, "You need to enter the feature you'd like to disable!")
+		return
+	} else if len(args) > 2 {
+		s.ChannelMessageSend(m.ChannelID, "Only one feature at a time please!")
+		return
+	}
+
+	switch feature := strings.ToLower(args[1]); feature {
+	case "card":
+		if err := b.changeCardMode(m.ChannelID, 0); err != nil {
+			s.ChannelMessageSend(
+				m.ChannelID,
+				fmt.Sprintf("That failed: %s", err.Error()),
+			)
+		} else {
+			s.ChannelMessageSend(m.ChannelID, "Done :)")
+		}
+	default:
+		s.ChannelMessageSend(m.ChannelID, "That isn't a valid feature!")
+	}
+}
+
 func (b *JapanBot) changeCardMode(channelID string, cardMode int) error {
 	valueMap := map[string]interface{}{
 		"ChannelID": channelID,
@@ -145,14 +170,24 @@ func (b *JapanBot) changeCardMode(channelID string, cardMode int) error {
 	err := b.channels.Get(valueMap, c)
 	if err != nil {
 		if err == sql.ErrNoRows {
+			if cardMode == -1 {
+				cardMode = 1
+			}
 			c.ChannelID = channelID
 			c.CardMode = cardMode
-			b.channels.Add(c)
-		} else {
+			err = b.channels.Add(c)
 			return err
 		}
+		return err
 	}
 
-	//Update card mode here at some point
-	return nil
+	if cardMode == -1 {
+		if c.CardMode == 0 {
+			c.CardMode = 1
+		} else {
+			c.CardMode = 0
+		}
+	}
+	err = b.channels.Update(c)
+	return err
 }
