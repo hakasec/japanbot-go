@@ -58,9 +58,40 @@ func (set *DBSet) Get(valueMap map[string]interface{}, entity interface{}) error
 	}
 	builder.WriteString(";")
 
+	rawData := make([]interface{}, len(set.fieldMap))
+	dest := make([]interface{}, len(set.fieldMap))
+	for i := range rawData {
+		dest[i] = &rawData[i]
+	}
+
 	row := set.db.QueryRow(builder.String(), values...)
-	if err := row.Scan(entity); err == nil {
+	if err := row.Scan(dest...); err != nil {
 		return err
+	}
+
+	for i, field := range helpers.GetModelFields(set.t) {
+		entityVal := reflect.ValueOf(entity).Elem()
+		fieldVal := reflect.ValueOf(rawData[i])
+
+		entityField := entityVal.FieldByName(field.Name)
+		switch kind := fieldVal.Kind(); kind {
+		case reflect.Int:
+			fallthrough
+		case reflect.Int8:
+			fallthrough
+		case reflect.Int16:
+			fallthrough
+		case reflect.Int32:
+			fallthrough
+		case reflect.Int64:
+			entityField.SetInt(fieldVal.Int())
+		case reflect.Array:
+			fallthrough
+		case reflect.Slice:
+			entityField.SetString(string(fieldVal.Bytes()))
+		default:
+			entityField.Set(fieldVal)
+		}
 	}
 
 	return nil
@@ -151,6 +182,7 @@ func (set *DBSet) CreateTable() error {
 			isPrimaryKey    bool
 			isAutoIncrement bool
 			isNotNull       bool
+			isUnique        bool
 			hasDefaultVal   bool
 			defaultVal      string
 			sqlType         string
@@ -173,6 +205,8 @@ func (set *DBSet) CreateTable() error {
 				isAutoIncrement = true
 			} else if val == "notnull" {
 				isNotNull = true
+			} else if val == "unique" {
+				isUnique = true
 			} else if i == len(tagArgs)-2 {
 				defaultVal = val
 			}
@@ -194,6 +228,9 @@ func (set *DBSet) CreateTable() error {
 		}
 		if isNotNull {
 			columnBuilder.WriteString(" NOT NULL")
+		}
+		if isUnique {
+			columnBuilder.WriteString(" UNIQUE")
 		}
 		if hasDefaultVal {
 			if sqlType == "TEXT" {
