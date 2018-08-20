@@ -140,11 +140,50 @@ func (set *DBSet) Add(entity interface{}) error {
 	builder.WriteString(fmt.Sprintf(" VALUES (%s);", valueArgs))
 
 	_, err := set.db.Exec(builder.String(), values...)
-	if err != nil {
-		return err
+	return err
+}
+
+// Update will update a given entity
+func (set *DBSet) Update(entity interface{}) error {
+	modelType := reflect.TypeOf(entity).Elem()
+	modelVal := reflect.ValueOf(entity).Elem()
+	if modelType != set.t {
+		return errors.New("The type of the given entity doesn't match DBSet type")
 	}
 
-	return nil
+	fields := helpers.GetModelFields(modelType)
+	if len(fields) == 0 {
+		return errors.New("This model doesn't have any model tags")
+	}
+
+	var (
+		builder         strings.Builder
+		primaryKeyValue interface{}
+		primaryKeyName  string
+		values          []interface{}
+	)
+	builder.WriteString(fmt.Sprintf("UPDATE `%s` SET", set.tableName))
+	for i, field := range fields {
+		fieldVal := modelVal.FieldByName(field.Name).Interface()
+		tagArgs := strings.Split(field.Tag.Get("model"), ",")
+		if helpers.StringSliceContains(tagArgs, "primarykey") {
+			primaryKeyValue = fieldVal
+			primaryKeyName = set.fieldMap[field.Name]
+		}
+
+		if i+1 == len(fields) {
+			builder.WriteString(fmt.Sprintf(" `%s` = ?", tagArgs[0]))
+		} else {
+			builder.WriteString(fmt.Sprintf(" `%s` = ?,", tagArgs[0]))
+		}
+
+		values = append(values, fieldVal)
+	}
+	builder.WriteString(fmt.Sprintf(" WHERE `%s` = ?;", primaryKeyName))
+	values = append(values, primaryKeyValue)
+
+	_, err := set.db.Exec(builder.String(), values...)
+	return err
 }
 
 // Delete will delete the given entity from the database
