@@ -3,7 +3,9 @@ package bot
 import (
 	"database/sql"
 	"fmt"
+	"math/rand"
 	"strings"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/hakasec/japanbot-go/bot/database/models"
@@ -183,11 +185,24 @@ func (b *JapanBot) changeCardMode(channelID string, cardMode int) error {
 
 	if cardMode == -1 {
 		if c.CardMode == 0 {
-			c.CardMode = 1
+			cardMode = 1
 		} else {
-			c.CardMode = 0
+			cardMode = 0
 		}
 	}
+	c.CardMode = cardMode
 	err = b.channels.Update(c)
 	return err
+}
+
+func (b *JapanBot) generateCard(channelID string) *models.Card {
+	rnd := rand.Intn(len(b.dictionary.Entries) - 1)
+	rndEntry := &b.dictionary.Entries[rnd]
+	phrase := rndEntry.ReadingElements[0].Phrase
+
+	return &models.Card{
+		ChannelID: channelID,
+		Phrase:    phrase,
+		Timestamp: time.Now(),
+	}
 }
