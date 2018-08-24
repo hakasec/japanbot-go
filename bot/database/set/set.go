@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/hakasec/japanbot-go/bot/database"
 	"github.com/hakasec/japanbot-go/bot/helpers"
@@ -33,6 +34,20 @@ func New(tableName string, T reflect.Type, db *database.DBConnection) *DBSet {
 // valueMap should contain the struct field as a string for the key and the value being queried;
 // this is done as AND statements
 func (set *DBSet) Get(valueMap map[string]interface{}, entity interface{}) error {
+	return set.get(valueMap, "", false, entity)
+}
+
+// GetAsc gets the first entity in ascending order
+func (set *DBSet) GetAsc(valueMap map[string]interface{}, orderBy string, entity interface{}) error {
+	return set.get(valueMap, orderBy, false, entity)
+}
+
+// GetDesc gets the first entity in descending order
+func (set *DBSet) GetDesc(valueMap map[string]interface{}, orderBy string, entity interface{}) error {
+	return set.get(valueMap, orderBy, true, entity)
+}
+
+func (set *DBSet) get(valueMap map[string]interface{}, orderBy string, desc bool, entity interface{}) error {
 	var (
 		builder strings.Builder
 		values  []interface{}
@@ -56,6 +71,21 @@ func (set *DBSet) Get(valueMap map[string]interface{}, entity interface{}) error
 		}
 		values = append(values, v)
 	}
+	if orderBy != "" {
+		var orderStatement string
+		if desc {
+			orderStatement = fmt.Sprintf(
+				" ORDER BY `%s` DESC",
+				set.fieldMap[orderBy],
+			)
+		} else {
+			orderStatement = fmt.Sprintf(
+				" ORDER BY `%s` ASC",
+				set.fieldMap[orderBy],
+			)
+		}
+		builder.WriteString(orderStatement)
+	}
 	builder.WriteString(";")
 
 	rawData := make([]interface{}, len(set.fieldMap))
@@ -75,20 +105,22 @@ func (set *DBSet) Get(valueMap map[string]interface{}, entity interface{}) error
 
 		entityField := entityVal.FieldByName(field.Name)
 		switch kind := fieldVal.Kind(); kind {
-		case reflect.Int:
-			fallthrough
-		case reflect.Int8:
-			fallthrough
-		case reflect.Int16:
-			fallthrough
-		case reflect.Int32:
-			fallthrough
-		case reflect.Int64:
+		case reflect.Int, reflect.Int8, reflect.Int16,
+			reflect.Int32, reflect.Int64:
 			entityField.SetInt(fieldVal.Int())
-		case reflect.Array:
-			fallthrough
-		case reflect.Slice:
-			entityField.SetString(string(fieldVal.Bytes()))
+		case reflect.Array, reflect.Slice:
+			if entityField.Kind() == reflect.String {
+				entityField.SetString(string(fieldVal.Bytes()))
+			} else if entityField.Type().Name() == "Time" {
+				parsedTime, err := time.Parse(
+					helpers.SqliteDateFormat,
+					string(fieldVal.Bytes()),
+				)
+				if err != nil {
+					return err
+				}
+				entityField.Set(reflect.ValueOf(parsedTime))
+			}
 		default:
 			entityField.Set(fieldVal)
 		}

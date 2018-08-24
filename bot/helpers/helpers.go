@@ -5,6 +5,8 @@ import (
 	"reflect"
 )
 
+const SqliteDateFormat = "2006-01-02 15:04:05.999999999-07:00"
+
 // CreateNgrams takes a string and returns a list of grams of a given size
 func CreateNgrams(s string, size int) []string {
 	runes := []rune(s)

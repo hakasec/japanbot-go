@@ -14,6 +14,7 @@ type Channel struct {
 type Card struct {
 	UID       int       `model:"uid,primarykey,auto"`
 	ChannelID string    `model:"channel_id"`
+	EntryID   string    `model:"entry_id"`
 	Phrase    string    `model:"phrase"`
 	Timestamp time.Time `model:"timestamp"`
 }

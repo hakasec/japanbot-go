@@ -2,6 +2,7 @@ package bot
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"reflect"
 	"strings"
@@ -71,14 +72,16 @@ func (b *JapanBot) onMessageCreate(s *discordgo.Session, m *discordgo.MessageCre
 		},
 		&channel,
 	)
-	if channel.CardMode != 0 {
+
+	postCard := rand.Intn(10) == 0
+	if channel.CardMode != 0 && postCard {
 		card := b.generateCard(m.ChannelID)
 		if err := b.cards.Add(card); err != nil {
 			fmt.Printf("Error adding card: %s\n", err.Error())
 		} else {
 			s.ChannelMessageSend(
 				m.ChannelID,
-				fmt.Sprintf("```Card lol:\nPhrase: %s\n```", card.Phrase),
+				fmt.Sprintf("```Card:\nPhrase: %s\n```", card.Phrase),
 			)
 		}
 	}

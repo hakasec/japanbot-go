@@ -2,6 +2,7 @@ package bot
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"math/rand"
 	"strings"
@@ -25,6 +26,7 @@ func (b *JapanBot) createHandlerMap() HandlerMap {
 	return HandlerMap{
 		"analyze": b.analyse,
 		"analyse": b.analyse,
+		"answer":  b.answer,
 		"help":    b.help,
 		"hentai":  b.hentai,
 		"enable":  b.enableFeature,
@@ -196,13 +198,56 @@ func (b *JapanBot) changeCardMode(channelID string, cardMode int) error {
 }
 
 func (b *JapanBot) generateCard(channelID string) *models.Card {
-	rnd := rand.Intn(len(b.dictionary.Entries) - 1)
+	rnd := rand.Intn(len(b.dictionary.Entries))
 	rndEntry := &b.dictionary.Entries[rnd]
-	phrase := rndEntry.ReadingElements[0].Phrase
+
+	var phrase string
+	if len(rndEntry.KanjiElements) > 0 {
+		rnd = rand.Intn(len(rndEntry.KanjiElements))
+		phrase = rndEntry.KanjiElements[rnd].Phrase
+	} else if len(rndEntry.ReadingElements) > 0 {
+		rnd = rand.Intn(len(rndEntry.ReadingElements))
+		phrase = rndEntry.ReadingElements[rnd].Phrase
+	} else {
+		panic(errors.New("Couldn't generate card"))
+	}
 
 	return &models.Card{
 		ChannelID: channelID,
 		Phrase:    phrase,
+		EntryID:   rndEntry.EntryID,
 		Timestamp: time.Now(),
 	}
+}
+
+func (b *JapanBot) getLatestCard(channelID string) *models.Card {
+	var c models.Card
+	err := b.cards.GetDesc(
+		map[string]interface{}{
+			"ChannelID": channelID,
+		},
+		"Timestamp",
+		&c,
+	)
+	if err != nil {
+		panic(err)
+	}
+	return &c
+}
+
+func (b *JapanBot) answer(args []string, s *discordgo.Session, m *discordgo.Message) {
+	lastCard := b.getLatestCard(m.ChannelID)
+	dictEntry := b.dictionary.IndexByID[lastCard.EntryID]
+
+	answer := strings.Join(args[1:], " ")
+
+	for _, sense := range dictEntry.Senses {
+		for _, item := range sense.GlossaryItems {
+			if strings.ToLower(item.Definition) == strings.ToLower(answer) {
+				s.ChannelMessageSend(m.ChannelID, "Correct!")
+				return
+			}
+		}
+	}
+	s.ChannelMessageSend(m.ChannelID, "Incorrect. Try again!")
 }
