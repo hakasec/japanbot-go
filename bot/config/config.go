@@ -9,6 +9,14 @@ import (
 type BotConfiguration struct {
 	JMdictFile string `json:"jmdict_file"`
 	APIToken   string `json:"api_token"`
+
+	DBConfig DBConfiguration `json:"db_config"`
+}
+
+// DBConfiguration configures the database layer
+type DBConfiguration struct {
+	DriverName string `json:"driver_name"`
+	ConnString string `json:"conn_string"`
 }
 
 // LoadFromFile creates a BotConfiguration from a given file

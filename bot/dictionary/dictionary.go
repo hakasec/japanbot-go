@@ -7,7 +7,8 @@ import (
 )
 
 type Dictionary struct {
-	Index map[string]*jmdict.Entry
+	Index     map[string]*jmdict.Entry
+	IndexByID map[string]*jmdict.Entry
 
 	*jmdict.JMdict
 }
@@ -21,6 +22,7 @@ func (d *Dictionary) createIndex() {
 			d.Index[reading.Phrase] = &d.Entries[i]
 			d.Index[reading.PhraseNoKanji] = &d.Entries[i]
 		}
+		d.IndexByID[entry.EntryID] = &d.Entries[i]
 	}
 }
 
@@ -33,6 +35,7 @@ func Load(r io.Reader) (*Dictionary, error) {
 	}
 
 	d.Index = make(map[string]*jmdict.Entry)
+	d.IndexByID = make(map[string]*jmdict.Entry)
 	d.createIndex()
 
 	return d, nil

@@ -1,10 +1,15 @@
 package bot
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
+	"math/rand"
 	"strings"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/hakasec/japanbot-go/bot/database/models"
 	"github.com/hakasec/japanbot-go/bot/helpers"
 )
 
@@ -21,8 +26,11 @@ func (b *JapanBot) createHandlerMap() HandlerMap {
 	return HandlerMap{
 		"analyze": b.analyse,
 		"analyse": b.analyse,
+		"answer":  b.answer,
 		"help":    b.help,
 		"hentai":  b.hentai,
+		"enable":  b.enableFeature,
+		"disable": b.disableFeature,
 	}
 }
 
@@ -108,4 +116,138 @@ Available Commands:
 
 func (b *JapanBot) hentai(args []string, s *discordgo.Session, m *discordgo.Message) {
 	s.ChannelMessageSend(m.ChannelID, "CUMMING SOON!")
+}
+
+func (b *JapanBot) enableFeature(args []string, s *discordgo.Session, m *discordgo.Message) {
+	if len(args) < 2 {
+		s.ChannelMessageSend(m.ChannelID, "You need to enter the feature you'd like to enable!")
+		return
+	} else if len(args) > 2 {
+		s.ChannelMessageSend(m.ChannelID, "Only one feature at a time please!")
+		return
+	}
+
+	switch feature := strings.ToLower(args[1]); feature {
+	case "card":
+		if err := b.changeCardMode(m.ChannelID, 1); err != nil {
+			s.ChannelMessageSend(
+				m.ChannelID,
+				fmt.Sprintf("That failed: %s", err.Error()),
+			)
+		} else {
+			s.ChannelMessageSend(m.ChannelID, "Done :)")
+		}
+	default:
+		s.ChannelMessageSend(m.ChannelID, "That isn't a valid feature!")
+	}
+}
+
+func (b *JapanBot) disableFeature(args []string, s *discordgo.Session, m *discordgo.Message) {
+	if len(args) < 2 {
+		s.ChannelMessageSend(m.ChannelID, "You need to enter the feature you'd like to disable!")
+		return
+	} else if len(args) > 2 {
+		s.ChannelMessageSend(m.ChannelID, "Only one feature at a time please!")
+		return
+	}
+
+	switch feature := strings.ToLower(args[1]); feature {
+	case "card":
+		if err := b.changeCardMode(m.ChannelID, 0); err != nil {
+			s.ChannelMessageSend(
+				m.ChannelID,
+				fmt.Sprintf("That failed: %s", err.Error()),
+			)
+		} else {
+			s.ChannelMessageSend(m.ChannelID, "Done :)")
+		}
+	default:
+		s.ChannelMessageSend(m.ChannelID, "That isn't a valid feature!")
+	}
+}
+
+func (b *JapanBot) changeCardMode(channelID string, cardMode int) error {
+	valueMap := map[string]interface{}{
+		"ChannelID": channelID,
+	}
+	c := &models.Channel{}
+	err := b.channels.Get(valueMap, c)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			if cardMode == -1 {
+				cardMode = 1
+			}
+			c.ChannelID = channelID
+			c.CardMode = cardMode
+			err = b.channels.Add(c)
+			return err
+		}
+		return err
+	}
+
+	if cardMode == -1 {
+		if c.CardMode == 0 {
+			cardMode = 1
+		} else {
+			cardMode = 0
+		}
+	}
+	c.CardMode = cardMode
+	err = b.channels.Update(c)
+	return err
+}
+
+func (b *JapanBot) generateCard(channelID string) *models.Card {
+	rnd := rand.Intn(len(b.dictionary.Entries))
+	rndEntry := &b.dictionary.Entries[rnd]
+
+	var phrase string
+	if len(rndEntry.KanjiElements) > 0 {
+		rnd = rand.Intn(len(rndEntry.KanjiElements))
+		phrase = rndEntry.KanjiElements[rnd].Phrase
+	} else if len(rndEntry.ReadingElements) > 0 {
+		rnd = rand.Intn(len(rndEntry.ReadingElements))
+		phrase = rndEntry.ReadingElements[rnd].Phrase
+	} else {
+		panic(errors.New("Couldn't generate card"))
+	}
+
+	return &models.Card{
+		ChannelID: channelID,
+		Phrase:    phrase,
+		EntryID:   rndEntry.EntryID,
+		Timestamp: time.Now(),
+	}
+}
+
+func (b *JapanBot) getLatestCard(channelID string) *models.Card {
+	var c models.Card
+	err := b.cards.GetDesc(
+		map[string]interface{}{
+			"ChannelID": channelID,
+		},
+		"Timestamp",
+		&c,
+	)
+	if err != nil {
+		panic(err)
+	}
+	return &c
+}
+
+func (b *JapanBot) answer(args []string, s *discordgo.Session, m *discordgo.Message) {
+	lastCard := b.getLatestCard(m.ChannelID)
+	dictEntry := b.dictionary.IndexByID[lastCard.EntryID]
+
+	answer := strings.Join(args[1:], " ")
+
+	for _, sense := range dictEntry.Senses {
+		for _, item := range sense.GlossaryItems {
+			if strings.ToLower(item.Definition) == strings.ToLower(answer) {
+				s.ChannelMessageSend(m.ChannelID, "Correct!")
+				return
+			}
+		}
+	}
+	s.ChannelMessageSend(m.ChannelID, "Incorrect. Try again!")
 }
