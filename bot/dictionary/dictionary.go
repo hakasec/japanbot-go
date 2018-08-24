@@ -21,6 +21,7 @@ func (d *Dictionary) createIndex() {
 			d.Index[reading.Phrase] = &d.Entries[i]
 			d.Index[reading.PhraseNoKanji] = &d.Entries[i]
 		}
+		d.Index[entry.EntryID] = &d.Entries[i]
 	}
 }
 
