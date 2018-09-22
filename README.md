@@ -2,6 +2,10 @@
 
 A Discord bot with some useful features.
 
+## Requirements
+
+This bot requires Go version 1.10 or higher to run.
+
 ## Features
 
 - Analyse and breakdown a Japanese sentence or phrase into smaller definitions,
