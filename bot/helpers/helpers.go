@@ -3,6 +3,7 @@ package helpers
 import (
 	"errors"
 	"reflect"
+	"strings"
 )
 
 const SqliteDateFormat = "2006-01-02 15:04:05.999999999-07:00"
@@ -68,4 +69,22 @@ func GetModelFields(T reflect.Type) []*reflect.StructField {
 		}
 	}
 	return fields
+}
+
+func GetNumDigits(num int) int {
+	digits := 0
+	for num > 0 {
+		digits++
+		num = int(num / 10)
+	}
+	return digits
+}
+
+func IsDigits(s string) bool {
+	for _, c := range s {
+		if !strings.ContainsAny(string(c), "0123456789") {
+			return false
+		}
+	}
+	return true
 }

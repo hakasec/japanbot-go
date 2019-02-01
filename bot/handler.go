@@ -5,12 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/hakasec/japanbot-go/bot/database/models"
 	"github.com/hakasec/japanbot-go/bot/helpers"
+	jmdict "github.com/hakasec/jmdict-go"
 )
 
 // HandlerFunc defines a handler function
@@ -41,52 +43,104 @@ func (b *JapanBot) analyse(args []string, s *discordgo.Session, m *discordgo.Mes
 	}
 
 	phrase := strings.Join(args[1:], " ")
+
+	if helpers.IsDigits(phrase) {
+		selection, err := strconv.ParseInt(phrase, 0, 0)
+		if err != nil {
+			panic(err)
+		}
+		go b.handleAnalyseSelection(int(selection), s, m)
+		return
+	}
+
 	var allGrams []string
-	for ngramSize := 1; ngramSize < len(phrase); ngramSize++ {
+	// generate a list of ngrams of size 1 through len(phrase)
+	for ngramSize := 1; ngramSize <= len(phrase); ngramSize++ {
 		tmpNgram := helpers.CreateNgrams(phrase, ngramSize)
 		for _, gram := range tmpNgram {
+			// remove spaces
+			gram = strings.Replace(gram, " ", "", -1)
+			if gram == "" {
+				continue
+			}
+			// check if already in list
 			if !helpers.StringSliceContains(allGrams, gram) {
-				allGrams = append(allGrams, gram)
+				// check for definition
+				if _, ok := b.dictionary.Index[gram]; ok {
+					// add to list
+					allGrams = append(allGrams, gram)
+				}
 			}
 		}
 	}
 
-	commandSeg := strings.Split(args[0], "!")
-	commandLang := "eng"
-	if len(commandSeg) >= 3 {
-		commandLang = commandSeg[2]
+	_, err := s.ChannelMessageSend(
+		m.ChannelID,
+		b.buildAnalyseResponse(allGrams),
+	)
+	if err != nil {
+		panic(err)
 	}
-	hasContent := false
-	for _, gram := range allGrams {
-		entry, ok := b.dictionary.Index[gram]
+
+	b.analyseRequests[m.ChannelID] = allGrams
+}
+
+func (b *JapanBot) handleAnalyseSelection(selection int, s *discordgo.Session, m *discordgo.Message) {
+	r, ok := b.analyseRequests[m.ChannelID]
+	if !ok {
+		s.ChannelMessageSend(m.ChannelID, "You haven't specified anything to be defined!")
+	} else {
+		e, ok := b.dictionary.Index[r[selection-1]]
 		if ok {
-			var message strings.Builder
-			message.WriteString(fmt.Sprintf("```\n%s:\n", gram))
-			hasDefinition := false
-			for _, sense := range entry.Senses {
-				for _, gloss := range sense.GlossaryItems {
-					language := gloss.Language
-					if language == "" {
-						language = "eng"
-					}
-					if language == commandLang {
-						hasDefinition = true
-						message.WriteString(
-							fmt.Sprintf("\t%s\n", gloss.Definition),
-						)
-					}
-				}
+			s.ChannelMessageSend(m.ChannelID, b.buildDefinition(e, "eng"))
+		} else {
+			s.ChannelMessageSend(m.ChannelID, "No definition for this word!")
+		}
+	}
+}
+
+func (b *JapanBot) buildDefinition(entry *jmdict.Entry, langCode string) string {
+	if langCode == "" {
+		langCode = "eng"
+	}
+	var message strings.Builder
+	message.WriteString(fmt.Sprintf("```\n%s\n", entry.KanjiElements[0].Phrase))
+	for _, sense := range entry.Senses {
+		for _, gloss := range sense.GlossaryItems {
+			language := gloss.Language
+			if language == "" {
+				language = "eng"
 			}
-			message.WriteString("```")
-			if hasDefinition {
-				hasContent = true
-				s.ChannelMessageSend(m.ChannelID, message.String())
+			if language == langCode {
+				message.WriteString(
+					fmt.Sprintf("%s\n", gloss.Definition),
+				)
 			}
 		}
 	}
-	if !hasContent {
-		s.ChannelMessageSend(m.ChannelID, "ごめん! No definitions found!")
+	message.WriteString("```")
+	return message.String()
+}
+
+func (b *JapanBot) buildAnalyseResponse(ngrams []string) string {
+	var message strings.Builder
+	message.WriteString("```\nPick a phrase:\n")
+	width := helpers.GetNumDigits(len(ngrams))
+	for i, gram := range ngrams {
+		message.WriteString(
+			fmt.Sprintf(
+				"%d: %s%s\n",
+				i+1,
+				strings.Repeat(" ", width-helpers.GetNumDigits(i+1)),
+				gram,
+			),
+		)
 	}
+	message.WriteString(
+		fmt.Sprintf("\nUse jpn!analyse [1-%d]\n", len(ngrams)),
+	)
+	message.WriteString("```")
+	return message.String()
 }
 
 func (b *JapanBot) help(args []string, s *discordgo.Session, m *discordgo.Message) {
@@ -99,8 +153,6 @@ func (b *JapanBot) help(args []string, s *discordgo.Session, m *discordgo.Messag
 Available Commands:
 
 - analyse/analyze: Analyse a Japanese sentence. 
-  You can add ![language_code] to return results of a chosen changed 
-  e.g. jpn!anaylse!spa will return all avaliable Spanish definitions.
 
 - help: This help text, silly!  
 `,
