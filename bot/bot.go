@@ -26,6 +26,8 @@ type JapanBot struct {
 
 	channels *set.DBSet
 	cards    *set.DBSet
+
+	analyseRequests map[string][]string
 }
 
 // Start starts the JapanBot instance
@@ -123,6 +125,8 @@ func New(config *config.BotConfiguration) (*JapanBot, error) {
 
 		channels: channelSet,
 		cards:    cardSet,
+
+		analyseRequests: make(map[string][]string),
 	}
 	b.handlers = b.createHandlerMap()
 	return b, nil
