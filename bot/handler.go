@@ -74,12 +74,15 @@ func (b *JapanBot) analyse(args []string, s *discordgo.Session, m *discordgo.Mes
 		}
 	}
 
-	_, err := s.ChannelMessageSend(
-		m.ChannelID,
-		b.buildAnalyseResponse(allGrams),
-	)
-	if err != nil {
-		panic(err)
+	responses := strings.Split(b.buildAnalyseResponse(allGrams), "--")
+	for _, r := range responses {
+		_, err := s.ChannelMessageSend(
+			m.ChannelID,
+			r,
+		)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	b.analyseRequests[m.ChannelID] = allGrams
@@ -90,11 +93,15 @@ func (b *JapanBot) handleAnalyseSelection(selection int, s *discordgo.Session, m
 	if !ok {
 		s.ChannelMessageSend(m.ChannelID, "You haven't specified anything to be defined!")
 	} else {
-		e, ok := b.dictionary.Index[r[selection-1]]
-		if ok {
-			s.ChannelMessageSend(m.ChannelID, b.buildDefinition(e, "eng"))
+		if selection-1 < len(r) {
+			e, ok := b.dictionary.Index[r[selection-1]]
+			if ok {
+				s.ChannelMessageSend(m.ChannelID, b.buildDefinition(e, "eng"))
+			} else {
+				s.ChannelMessageSend(m.ChannelID, "No definition for this word!")
+			}
 		} else {
-			s.ChannelMessageSend(m.ChannelID, "No definition for this word!")
+			s.ChannelMessageSend(m.ChannelID, "Definition index is invalid!")
 		}
 	}
 }
@@ -104,7 +111,20 @@ func (b *JapanBot) buildDefinition(entry *jmdict.Entry, langCode string) string 
 		langCode = "eng"
 	}
 	var message strings.Builder
-	message.WriteString(fmt.Sprintf("```\n%s\n", entry.KanjiElements[0].Phrase))
+	message.WriteString("```")
+	for _, reading := range entry.KanjiElements {
+		message.WriteString(fmt.Sprintln(reading.Phrase))
+	}
+	for _, reading := range entry.ReadingElements {
+		if reading.PhraseNoKanji != "" {
+			message.WriteString(
+				fmt.Sprintf("%s (%s)\n", reading.Phrase, reading.PhraseNoKanji),
+			)
+		} else {
+			message.WriteString(fmt.Sprintln(reading.Phrase))
+		}
+	}
+	message.WriteString("\n")
 	for _, sense := range entry.Senses {
 		for _, gloss := range sense.GlossaryItems {
 			language := gloss.Language
@@ -123,18 +143,29 @@ func (b *JapanBot) buildDefinition(entry *jmdict.Entry, langCode string) string 
 }
 
 func (b *JapanBot) buildAnalyseResponse(ngrams []string) string {
+	if len(ngrams) == 0 {
+		return "No definitions found :("
+	}
+
 	var message strings.Builder
 	message.WriteString("```\nPick a phrase:\n")
 	width := helpers.GetNumDigits(len(ngrams))
 	for i, gram := range ngrams {
-		message.WriteString(
-			fmt.Sprintf(
-				"%d: %s%s\n",
-				i+1,
-				strings.Repeat(" ", width-helpers.GetNumDigits(i+1)),
-				gram,
-			),
+		tmp := fmt.Sprintf(
+			"%d: %s%s\n",
+			i+1,
+			strings.Repeat(" ", width-helpers.GetNumDigits(i+1)),
+			gram,
 		)
+		lastSplit := strings.LastIndex(message.String(), "--")
+		if lastSplit == -1 {
+			lastSplit = 0
+		}
+		// check for length, if over 1993 in len, add slip character
+		if (message.Len()-lastSplit)+len(tmp) >= 1996 {
+			message.WriteString("\n```--```\n")
+		}
+		message.WriteString(tmp)
 	}
 	message.WriteString(
 		fmt.Sprintf("\nUse jpn!analyse [1-%d]\n", len(ngrams)),
