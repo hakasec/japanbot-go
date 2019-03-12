@@ -9,8 +9,7 @@ This bot requires Go version 1.10 or higher to run.
 ## Features
 
 - Analyse and breakdown a Japanese sentence or phrase into smaller definitions,
-similar to the [Rikaichan](https://addons.mozilla.org/en-US/firefox/addon/rikaichan/)
-or [Rikaikun](https://chrome.google.com/webstore/detail/rikaikun/jipdnfibhldikgcjhfnomkfpcebammhp) browser plugins.
+similar to the [Rikaichan](https://addons.mozilla.org/en-US/firefox/addon/rikaichan/) or [Rikaikun](https://chrome.google.com/webstore/detail/rikaikun/jipdnfibhldikgcjhfnomkfpcebammhp) browser plugins.
 - More soon!
 
 ## Configuration
