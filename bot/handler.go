@@ -94,9 +94,11 @@ func (b *JapanBot) handleAnalyseSelection(selection int, s *discordgo.Session, m
 		s.ChannelMessageSend(m.ChannelID, "You haven't specified anything to be defined!")
 	} else {
 		if selection-1 < len(r) {
-			e, ok := b.dictionary.Index[r[selection-1]]
+			entries, ok := b.dictionary.Index[r[selection-1]]
 			if ok {
-				s.ChannelMessageSend(m.ChannelID, b.buildDefinition(e, "eng"))
+				for _, e := range entries {
+					s.ChannelMessageSend(m.ChannelID, b.buildDefinition(e, "eng"))
+				}
 			} else {
 				s.ChannelMessageSend(m.ChannelID, "No definition for this word!")
 			}
@@ -320,15 +322,17 @@ func (b *JapanBot) getLatestCard(channelID string) *models.Card {
 
 func (b *JapanBot) answer(args []string, s *discordgo.Session, m *discordgo.Message) {
 	lastCard := b.getLatestCard(m.ChannelID)
-	dictEntry := b.dictionary.IndexByID[lastCard.EntryID]
+	dictEntries := b.dictionary.IndexByID[lastCard.EntryID]
 
 	answer := strings.Join(args[1:], " ")
 
-	for _, sense := range dictEntry.Senses {
-		for _, item := range sense.GlossaryItems {
-			if strings.ToLower(item.Definition) == strings.ToLower(answer) {
-				s.ChannelMessageSend(m.ChannelID, "Correct!")
-				return
+	for _, dictEntry := range dictEntries {
+		for _, sense := range dictEntry.Senses {
+			for _, item := range sense.GlossaryItems {
+				if strings.ToLower(item.Definition) == strings.ToLower(answer) {
+					s.ChannelMessageSend(m.ChannelID, "Correct!")
+					return
+				}
 			}
 		}
 	}
