@@ -42,6 +42,7 @@ func (b *JapanBot) analyse(args []string, s *discordgo.Session, m *discordgo.Mes
 		return
 	}
 
+	var response string
 	phrase := strings.Join(args[1:], " ")
 
 	if helpers.IsDigits(phrase) {
@@ -49,32 +50,33 @@ func (b *JapanBot) analyse(args []string, s *discordgo.Session, m *discordgo.Mes
 		if err != nil {
 			panic(err)
 		}
-		go b.handleAnalyseSelection(int(selection), s, m)
-		return
-	}
-
-	var allGrams []string
-	// generate a list of ngrams of size 1 through len(phrase)
-	for ngramSize := 1; ngramSize <= len(phrase); ngramSize++ {
-		tmpNgram := helpers.CreateNgrams(phrase, ngramSize)
-		for _, gram := range tmpNgram {
-			// remove spaces
-			gram = strings.Replace(gram, " ", "", -1)
-			if gram == "" {
-				continue
-			}
-			// check if already in list
-			if !helpers.StringSliceContains(allGrams, gram) {
-				// check for definition
-				if _, ok := b.dictionary.Index[gram]; ok {
-					// add to list
-					allGrams = append(allGrams, gram)
+		response = b.buildSelectionResponse(int(selection), m)
+	} else {
+		var allGrams []string
+		// generate a list of ngrams of size 1 through len(phrase)
+		for ngramSize := 1; ngramSize <= len(phrase); ngramSize++ {
+			tmpNgram := helpers.CreateNgrams(phrase, ngramSize)
+			for _, gram := range tmpNgram {
+				// remove spaces
+				gram = strings.Replace(gram, " ", "", -1)
+				if gram == "" {
+					continue
+				}
+				// check if already in list
+				if !helpers.StringSliceContains(allGrams, gram) {
+					// check for definition
+					if _, ok := b.dictionary.Index[gram]; ok {
+						// add to list
+						allGrams = append(allGrams, gram)
+					}
 				}
 			}
 		}
+		b.analyseRequests[m.ChannelID] = allGrams
+		response = b.buildAnalyseResponse(allGrams)
 	}
 
-	responses := strings.Split(b.buildAnalyseResponse(allGrams), "--")
+	responses := strings.Split(response, "--")
 	for _, r := range responses {
 		_, err := s.ChannelMessageSend(
 			m.ChannelID,
@@ -84,28 +86,36 @@ func (b *JapanBot) analyse(args []string, s *discordgo.Session, m *discordgo.Mes
 			panic(err)
 		}
 	}
-
-	b.analyseRequests[m.ChannelID] = allGrams
 }
 
-func (b *JapanBot) handleAnalyseSelection(selection int, s *discordgo.Session, m *discordgo.Message) {
+func (b *JapanBot) buildSelectionResponse(selection int, m *discordgo.Message) string {
 	r, ok := b.analyseRequests[m.ChannelID]
 	if !ok {
-		s.ChannelMessageSend(m.ChannelID, "You haven't specified anything to be defined!")
-	} else {
-		if selection-1 < len(r) {
-			entries, ok := b.dictionary.Index[r[selection-1]]
-			if ok {
-				for _, e := range entries {
-					s.ChannelMessageSend(m.ChannelID, b.buildDefinition(e, "eng"))
-				}
-			} else {
-				s.ChannelMessageSend(m.ChannelID, "No definition for this word!")
-			}
-		} else {
-			s.ChannelMessageSend(m.ChannelID, "Definition index is invalid!")
-		}
+		return "You haven't specified anything to be defined!"
 	}
+
+	if selection-1 < len(r) {
+		entries, ok := b.dictionary.Index[r[selection-1]]
+		if ok {
+			var message strings.Builder
+			message.WriteString("```")
+			for _, e := range entries {
+				tmp := fmt.Sprintf("%s\n\n", b.buildDefinition(e, "eng"))
+				lastSplit := strings.LastIndex(message.String(), "--")
+				if lastSplit == -1 {
+					lastSplit = 0
+				}
+				if (message.Len()-lastSplit)+len(tmp) >= 1996 {
+					message.WriteString("\n```--```\n")
+				}
+				message.WriteString(tmp)
+			}
+			message.WriteString("```")
+			return message.String()
+		}
+		return "No definition for this word!"
+	}
+	return "Definition index is invalid!"
 }
 
 func (b *JapanBot) buildDefinition(entry *jmdict.Entry, langCode string) string {
@@ -113,7 +123,6 @@ func (b *JapanBot) buildDefinition(entry *jmdict.Entry, langCode string) string 
 		langCode = "eng"
 	}
 	var message strings.Builder
-	message.WriteString("```")
 	for _, reading := range entry.KanjiElements {
 		message.WriteString(fmt.Sprintln(reading.Phrase))
 	}
@@ -140,7 +149,6 @@ func (b *JapanBot) buildDefinition(entry *jmdict.Entry, langCode string) string 
 			}
 		}
 	}
-	message.WriteString("```")
 	return message.String()
 }
 
