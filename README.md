@@ -26,3 +26,7 @@ You can interact with the bot using commands preceded by `jpn!`.
 The main feature of the bot is `jpn!analyse` (or `jpn!analyze`, if you prefer the OUP/American spelling).
 
 ![analyse_example](docs/images/analyse_example1.png)
+
+## Credits
+
+`colours.json` courtesy of [jonasjacek's repo](https://github.com/jonasjacek/colors).

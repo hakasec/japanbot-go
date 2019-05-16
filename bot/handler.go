@@ -1,12 +1,22 @@
 package bot
 
 import (
+	"bytes"
 	"database/sql"
 	"errors"
 	"fmt"
+	"image"
+	"image/color"
+	_ "image/gif"  // for gif decoding
+	_ "image/jpeg" // for jpeg decoding
+	"image/png"
 	"math/rand"
+	"net/http"
+	"os"
+	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -24,6 +34,29 @@ type HandlerFunc func(args []string, s *discordgo.Session, m *discordgo.Message)
 // HandlerMap is a map of commands to HandlerFuncs
 type HandlerMap map[string]HandlerFunc
 
+var (
+	// 256 colour palette
+	terminalPalette color.Palette
+	// regex for supported image formats
+	imageRegex *regexp.Regexp
+)
+
+func init() {
+	f, err := os.Open("./colours.json")
+	if err != nil {
+		panic(err)
+	}
+	terminalPalette, err = helpers.ReadPalette(f)
+	if err != nil {
+		panic(err)
+	}
+	imageRegex, err = regexp.Compile("\\.(png|jpeg|jpg|gif)$")
+	if err != nil {
+		panic(err)
+	}
+}
+
+// initialises the handler map
 func (b *JapanBot) createHandlerMap() HandlerMap {
 	return HandlerMap{
 		"analyze": b.analyse,
@@ -33,6 +66,8 @@ func (b *JapanBot) createHandlerMap() HandlerMap {
 		"hentai":  b.hentai,
 		"enable":  b.enableFeature,
 		"disable": b.disableFeature,
+		"vape":    b.vape,
+		"dither":  b.dither,
 	}
 }
 
@@ -345,4 +380,219 @@ func (b *JapanBot) answer(args []string, s *discordgo.Session, m *discordgo.Mess
 		}
 	}
 	s.ChannelMessageSend(m.ChannelID, "Incorrect. Try again!")
+}
+
+func (b *JapanBot) getLastMessageWithImages(
+	channelID string,
+	beforeID string,
+	limit int,
+) (*discordgo.Message, error) {
+	// get messages
+	messages, err := b.session.ChannelMessages(channelID, limit, beforeID, "", "")
+	if err != nil {
+		return nil, err
+	}
+	// check each message for image attachments
+	for _, m := range messages {
+		for _, a := range m.Attachments {
+			// if attachment is an image
+			if imageRegex.MatchString(a.Filename) {
+				return m, nil
+			}
+		}
+	}
+	return nil, nil
+}
+
+// image manipulation functions
+type (
+	imageURLFunc func(c chan<- image.Image, url string)
+	imageFunc    func(c chan<- image.Image, image image.Image)
+)
+
+// manipulateImage gets the image attachments of the latest message
+// and applies an imageFunc on it
+// m:		message that triggered the command
+// errmsg:	error message is no image is found
+// status:	status message when bot is working on manipulation
+// f:		the manipulation function to be applied
+func (b *JapanBot) manipulateImage(
+	m *discordgo.Message,
+	errmsg,
+	status string,
+	f imageURLFunc,
+) {
+	// find attachments
+	var attachments []*discordgo.MessageAttachment
+	if len(m.Attachments) > 0 {
+		for _, a := range m.Attachments {
+			if imageRegex.MatchString(a.Filename) {
+				attachments = m.Attachments
+				break
+			}
+		}
+	} else {
+		msgs, err := b.getLastMessageWithImages(m.ChannelID, m.ID, 10)
+		if err != nil {
+			panic(err)
+		}
+		if msgs == nil {
+			if errmsg != "" {
+				_, err := b.session.ChannelMessageSend(m.ChannelID, errmsg)
+				if err != nil {
+					panic(err)
+				}
+			}
+			return
+		}
+		attachments = msgs.Attachments
+	}
+
+	if status != "" {
+		// post status message
+		sm, err := b.session.ChannelMessageSend(m.ChannelID, status)
+		if err != nil {
+			panic(err)
+		}
+		// defer deletion of status message
+		defer func() {
+			if err := b.session.ChannelMessageDelete(sm.ChannelID, sm.ID); err != nil {
+				panic(err)
+			}
+		}()
+	}
+
+	// manipulate all images
+	images := make(chan image.Image)
+	for _, a := range attachments {
+		if imageRegex.MatchString(a.Filename) {
+			go f(images, a.URL)
+		}
+	}
+
+	// deliver each image
+	for img := range images {
+		var bs bytes.Buffer
+		if err := png.Encode(&bs, img); err != nil {
+			panic(err)
+		}
+		_, err := b.session.ChannelFileSend(
+			m.ChannelID,
+			fmt.Sprintf("%x%x.png", rand.Int(), rand.Int()),
+			&bs,
+		)
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
+func (b *JapanBot) vape(args []string, s *discordgo.Session, m *discordgo.Message) {
+	b.manipulateImage(
+		m,
+		"Couldn't find an image to vape!",
+		"Working on it!",
+		vapeImageURL,
+	)
+}
+
+func (b *JapanBot) dither(args []string, s *discordgo.Session, m *discordgo.Message) {
+	b.manipulateImage(
+		m,
+		"Couldn't find an image to dither!",
+		"Dithering now!",
+		ditherImageURL,
+	)
+}
+
+func vapeImageURL(c chan<- image.Image, url string) {
+	r, err := http.Get(url)
+	if err != nil {
+		panic(err)
+	}
+	defer r.Body.Close()
+	if img, _, err := image.Decode(r.Body); err != nil {
+		panic(err)
+	} else {
+		go vapeImage(c, img)
+	}
+}
+
+func vapeImage(c chan<- image.Image, img image.Image) {
+	bayerMatrix := helpers.BayerMatrix16
+	l := len(bayerMatrix)
+	newImg := image.NewRGBA(img.Bounds())
+	size := img.Bounds().Size()
+	var wg sync.WaitGroup
+	for y := 0; y < size.Y; y++ {
+		// do each row concurrently
+		wg.Add(1)
+		go func(y int) {
+			// get and sort row
+			row := make([]color.Color, size.X)
+			for x := 0; x < size.X; x++ {
+				row[x] = helpers.Neonify(
+					img.At(x, y),
+					float32(x)/float32(size.X)*0.7,
+				)
+			}
+			row = helpers.SortColours(row)
+			// place row in newImg
+			for x, c := range row {
+				newImg.Set(
+					x,
+					y,
+					helpers.Dither(
+						c,
+						terminalPalette,
+						bayerMatrix[x%l][y%l],
+					),
+				)
+			}
+			wg.Done()
+		}(y)
+	}
+	wg.Wait()
+	c <- newImg
+}
+
+func ditherImageURL(c chan<- image.Image, url string) {
+	r, err := http.Get(url)
+	if err != nil {
+		panic(err)
+	}
+	defer r.Body.Close()
+	if img, _, err := image.Decode(r.Body); err != nil {
+		panic(err)
+	} else {
+		go ditherImage(c, img)
+	}
+}
+
+func ditherImage(c chan<- image.Image, img image.Image) {
+	bayerMatrix := helpers.BayerMatrix16
+	l := len(bayerMatrix)
+	newImg := image.NewRGBA(img.Bounds())
+	size := img.Bounds().Size()
+	var wg sync.WaitGroup
+	for y := 0; y < size.Y; y++ {
+		// do each row concurrently
+		wg.Add(1)
+		go func(y int) {
+			for x := 0; x < size.X; x++ {
+				newImg.Set(
+					x,
+					y,
+					helpers.Dither(
+						img.At(x, y),
+						terminalPalette,
+						bayerMatrix[x%l][y%l],
+					),
+				)
+			}
+			wg.Done()
+		}(y)
+	}
+	wg.Wait()
+	c <- newImg
 }

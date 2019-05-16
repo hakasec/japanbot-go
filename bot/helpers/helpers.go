@@ -6,6 +6,7 @@ import (
 	"strings"
 )
 
+// SqliteDateFormat is the SQLite date format in the sql package notation
 const SqliteDateFormat = "2006-01-02 15:04:05.999999999-07:00"
 
 // CreateNgrams takes a string and returns a list of grams of a given size
@@ -71,6 +72,8 @@ func GetModelFields(T reflect.Type) []*reflect.StructField {
 	return fields
 }
 
+// GetNumDigits returns the number of digits needed to
+// represent a number in base 10
 func GetNumDigits(num int) int {
 	digits := 0
 	for num > 0 {
@@ -80,6 +83,7 @@ func GetNumDigits(num int) int {
 	return digits
 }
 
+// IsDigits returns whether a string consists of wholly digits
 func IsDigits(s string) bool {
 	for _, c := range s {
 		if !strings.ContainsAny(string(c), "0123456789") {
