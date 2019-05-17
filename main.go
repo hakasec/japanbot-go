@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path"
 	"syscall"
 
 	"github.com/hakasec/japanbot-go/bot"
@@ -13,8 +14,14 @@ import (
 var botConfig *config.BotConfiguration
 
 func init() {
+	cpath := "./"
+	if p := os.Getenv("CONFIG_PATH"); p != "" {
+		cpath = p
+	}
 	var err error
-	botConfig, err = config.LoadFromFile("./config.json")
+	botConfig, err = config.LoadFromFile(
+		path.Join(cpath, "config.json"),
+	)
 	if err != nil {
 		panic(err)
 	}

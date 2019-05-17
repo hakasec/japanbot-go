@@ -13,6 +13,7 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -42,7 +43,11 @@ var (
 )
 
 func init() {
-	f, err := os.Open("./colours.json")
+	share := "./"
+	if p := os.Getenv("SHARE_PATH"); p != "" {
+		share = p
+	}
+	f, err := os.Open(path.Join(share, "colours.json"))
 	if err != nil {
 		panic(err)
 	}
