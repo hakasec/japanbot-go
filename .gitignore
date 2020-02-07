@@ -1,5 +1,6 @@
 data/
 
 **/debug*
+__debug_bin
 
 config.json
