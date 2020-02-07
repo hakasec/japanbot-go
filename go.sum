@@ -1,0 +1,10 @@
+github.com/bwmarrin/discordgo v0.18.0 h1:XopVQXCIFy7Cr2eT7NcYcm4k0l2PYX+AP5RUbIWX2/8=
+github.com/bwmarrin/discordgo v0.18.0/go.mod h1:5NIvFv5Z7HddYuXbuQegZ684DleQaCFqChP2iuBivJ8=
+github.com/gorilla/websocket v1.2.0 h1:VJtLvh6VQym50czpZzx07z/kw9EgAxI3x1ZB8taTMQQ=
+github.com/gorilla/websocket v1.2.0/go.mod h1:E7qHFY5m1UJ88s3WnNqhKjPHQ0heANvMoAMk2YaljkQ=
+github.com/hakasec/jmdict-go v0.0.0-20180814133512-faa760538423 h1:KYCL1tIc2wmJXlIvJXZhkRkOewr5kk1X7wZGJdi9Mtc=
+github.com/hakasec/jmdict-go v0.0.0-20180814133512-faa760538423/go.mod h1:vS8rzvwv8kz53kQB2lM/jJAvqmiywsnQOCe3JHRVk6I=
+github.com/hakasec/jmdict-go v0.1.0 h1:dZdO9srZa4/4QRwbllPomBy/0h2p18a1YZ9C4nUK/dE=
+github.com/hakasec/jmdict-go v0.1.0/go.mod h1:vS8rzvwv8kz53kQB2lM/jJAvqmiywsnQOCe3JHRVk6I=
+golang.org/x/crypto v0.0.0-20180808211826-de0752318171 h1:vYogbvSFj2YXcjQxFHu/rASSOt9sLytpCaSkiwQ135I=
+golang.org/x/crypto v0.0.0-20180808211826-de0752318171/go.mod h1:6SG95UA2DQfeDnfUPMdvaQW0Q7yPrPDi9nlGo2tz2b4=
