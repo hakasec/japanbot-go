@@ -6,3 +6,5 @@ require (
 	github.com/hakasec/jmdict-go v0.1.0
 	golang.org/x/crypto v0.0.0-20180808211826-de0752318171 // indirect
 )
+
+go 1.13
